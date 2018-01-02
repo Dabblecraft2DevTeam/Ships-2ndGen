@@ -7,22 +7,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.material.MaterialData;
 
 import MoseShipsBukkit.Ships;
 import MoseShipsBukkit.Utils.MaterialAndData;
 import MoseShipsBukkit.Utils.MaterialItem;
 
+@SuppressWarnings("deprecation")
 public class MaterialsList {
 
 	List<MaterialItem> MATERIALIDLIST = new ArrayList<MaterialItem>();
 	List<MaterialItem> RAMIDLIST = new ArrayList<MaterialItem>();
 	static MaterialsList LIST;
 
-	@SuppressWarnings("deprecation")
 	public MaterialsList() {
 		File file = new File("plugins/Ships/Configuration/Materials.yml");
 		if (!file.exists()) {
@@ -213,9 +215,13 @@ public class MaterialsList {
 			Config.getConfig().updateCheck();
 			return true;
 		}
-		int knownVersion = Ships.getVersion(mcVersion);
-		int latest = Ships.getVersion(Ships.getMinecraftVersion());
-		if (latest > knownVersion) {
+		File file = new File("plugins/Ships/Configuration/Materials.yml");
+		if(file.length() == 0) {
+			return true;
+		}
+		int[] knownVersion = Ships.convertVersion(mcVersion);
+		int[] latest = Ships.convertVersion(Ships.getMinecraftVersion());	
+		if (Ships.compare(knownVersion, latest) == Ships.COMPARE_SECOND_VALUE_IS_GREATER) {
 			return true;
 		}
 		return false;
@@ -227,7 +233,10 @@ public class MaterialsList {
 		List<Material> failedMaterials = new ArrayList<Material>();
 		boolean check = false;
 		for (Material material : Material.values()) {
-			List<MaterialAndData> materials = MaterialAndData.getMaterial(material);
+			if(!material.isBlock()) {
+				continue;
+			}
+			Set<MaterialItem> materials = MaterialAndData.getAllBlocks(material);
 			if (materials != null) {
 				if (materials.size() == 0) {
 					failedMaterials.add(material);
@@ -240,7 +249,7 @@ public class MaterialsList {
 				} else {
 					if (needsUpdating()) {
 						check = true;
-						for (MaterialAndData data : materials) {
+						for (MaterialItem data : materials) {
 							if (contains(material, true)) {
 								if (config
 										.getInt("Materials." + material.name() + ".dataValue_" + data.getData()) == 0) {
@@ -290,6 +299,21 @@ public class MaterialsList {
 							false));
 		}
 	}
+	
+	public boolean contains(Material material, MaterialData data, boolean materials) {
+		List<MaterialItem> list = MATERIALIDLIST;
+		if(!materials) {
+			list = RAMIDLIST;
+		}
+		for(MaterialItem item : list) {
+			if(item.getMaterial().equals(material)) {
+				if(item.getData() == data.getData()) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
 
 	public boolean contains(Material material, boolean materials) {
 		if (materials) {
@@ -308,6 +332,7 @@ public class MaterialsList {
 		return false;
 	}
 
+	@Deprecated
 	public boolean contains(Material material, byte data, boolean materials) {
 		if (materials) {
 			for (MaterialItem item : MATERIALIDLIST) {
